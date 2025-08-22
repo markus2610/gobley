@@ -86,7 +86,7 @@ trait CodeType: Debug {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum ConfigKotlinTarget {
+pub(crate) enum ConfigKotlinTarget {
     #[serde(rename = "jvm")]
     Jvm,
     #[serde(rename = "android")]
@@ -103,9 +103,9 @@ pub struct Config {
     pub(super) package_name: Option<String>,
     pub(super) cdylib_name: Option<String>,
     #[serde(default)]
-    pub(super) kotlin_multiplatform: bool,
+    pub(crate) kotlin_multiplatform: bool,
     #[serde(default)]
-    kotlin_targets: Vec<ConfigKotlinTarget>,
+    pub(crate) kotlin_targets: Vec<ConfigKotlinTarget>,
     generate_immutable_records: Option<bool>,
     #[serde(default)]
     omit_checksums: bool,

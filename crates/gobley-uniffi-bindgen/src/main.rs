@@ -53,6 +53,10 @@ struct Cli {
     #[clap(long = "format", default_value_t = false)]
     try_format_code: bool,
 
+    /// Generate Kotlin Multiplatform bindings with all targets (jvm, android, native).
+    #[clap(long = "kmp")]
+    kotlin_multiplatform: bool,
+
     /// Path to the UDL file, or cdylib if `library-mode` is specified.
     source: Utf8PathBuf,
 }
@@ -120,9 +124,14 @@ fn main() -> anyhow::Result<()> {
         crate_name,
         source,
         try_format_code,
+        kotlin_multiplatform,
     } = Cli::parse();
 
-    let binding_generator = KotlinBindingGenerator;
+    let binding_generator = if kotlin_multiplatform {
+        KotlinBindingGenerator::new().with_multiplatform(true)
+    } else {
+        KotlinBindingGenerator::new()
+    };
 
     if library_mode {
         if lib_file.is_some() {

@@ -12,9 +12,31 @@ use fs_err as fs;
 use uniffi_bindgen::{BindingGenerator, Component, ComponentInterface, GenerationSettings};
 
 mod gen_kotlin_multiplatform;
-use gen_kotlin_multiplatform::{generate_bindings, Config};
+use gen_kotlin_multiplatform::{generate_bindings, Config, ConfigKotlinTarget};
 
-pub struct KotlinBindingGenerator;
+pub struct KotlinBindingGenerator {
+    pub force_multiplatform: bool,
+}
+
+impl Default for KotlinBindingGenerator {
+    fn default() -> Self {
+        Self {
+            force_multiplatform: false,
+        }
+    }
+}
+
+impl KotlinBindingGenerator {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    pub fn with_multiplatform(mut self, enabled: bool) -> Self {
+        self.force_multiplatform = enabled;
+        self
+    }
+}
+
 impl BindingGenerator for KotlinBindingGenerator {
     type Config = Config;
 
@@ -25,7 +47,22 @@ impl BindingGenerator for KotlinBindingGenerator {
             .and_then(|b| b.get("kotlin"))
             .unwrap_or(root_toml);
         
-        Ok(kotlin_config.clone().try_into()?)
+        let mut config: Config = kotlin_config.clone().try_into()?;
+        
+        // Override with CLI flag if provided
+        if self.force_multiplatform {
+            config.kotlin_multiplatform = true;
+            // Ensure we have default targets if none specified
+            if config.kotlin_targets.is_empty() {
+                config.kotlin_targets = vec![
+                    ConfigKotlinTarget::Jvm,
+                    ConfigKotlinTarget::Android,
+                    ConfigKotlinTarget::Native,
+                ];
+            }
+        }
+        
+        Ok(config)
     }
 
     fn update_component_configs(
@@ -140,4 +177,90 @@ fn write_cinterop(ci: &ComponentInterface, out_dir: &Utf8Path, content: String) 
     let file_path = dst_dir.join(format!("{}.h", ci.namespace()));
     let mut f = File::create(file_path).unwrap();
     write!(f, "{}", content).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use toml::value::Value;
+
+    #[test]
+    fn test_config_parsing_nested_format() {
+        let generator = KotlinBindingGenerator::new();
+        let toml_str = r#"
+        [bindings.kotlin]
+        package_name = "com.example.test"
+        kotlin_multiplatform = true
+        "#;
+        let root_toml: Value = toml::from_str(toml_str).unwrap();
+        let config = generator.new_config(&root_toml).unwrap();
+        
+        assert_eq!(config.package_name, Some("com.example.test".to_string()));
+        assert!(config.kotlin_multiplatform);
+    }
+
+    #[test]
+    fn test_config_parsing_flat_format() {
+        let generator = KotlinBindingGenerator::new();
+        let toml_str = r#"
+        package_name = "com.example.test"
+        kotlin_multiplatform = true
+        "#;
+        let root_toml: Value = toml::from_str(toml_str).unwrap();
+        let config = generator.new_config(&root_toml).unwrap();
+        
+        assert_eq!(config.package_name, Some("com.example.test".to_string()));
+        assert!(config.kotlin_multiplatform);
+    }
+
+    #[test]
+    fn test_kmp_flag_overrides_config() {
+        let generator = KotlinBindingGenerator::new().with_multiplatform(true);
+        let toml_str = r#"
+        [bindings.kotlin]
+        package_name = "com.example.test"
+        kotlin_multiplatform = false
+        "#;
+        let root_toml: Value = toml::from_str(toml_str).unwrap();
+        let config = generator.new_config(&root_toml).unwrap();
+        
+        // CLI flag should override config file setting
+        assert!(config.kotlin_multiplatform);
+        // Should have default targets
+        assert_eq!(config.kotlin_targets.len(), 3);
+    }
+
+    #[test]
+    fn test_kotlin_targets_defaults() {
+        let generator = KotlinBindingGenerator::new().with_multiplatform(true);
+        let toml_str = r#"
+        [bindings.kotlin]
+        package_name = "com.example.test"
+        "#;
+        let root_toml: Value = toml::from_str(toml_str).unwrap();
+        let config = generator.new_config(&root_toml).unwrap();
+        
+        // Should have default targets when multiplatform is enabled
+        assert!(config.kotlin_multiplatform);
+        assert_eq!(config.kotlin_targets.len(), 3);
+        assert!(config.kotlin_targets.contains(&ConfigKotlinTarget::Jvm));
+        assert!(config.kotlin_targets.contains(&ConfigKotlinTarget::Android));
+        assert!(config.kotlin_targets.contains(&ConfigKotlinTarget::Native));
+    }
+
+    #[test]
+    fn test_explicit_targets_preserved() {
+        let generator = KotlinBindingGenerator::new().with_multiplatform(true);
+        let toml_str = r#"
+        [bindings.kotlin]
+        package_name = "com.example.test"
+        kotlin_targets = ["jvm"]
+        "#;
+        let root_toml: Value = toml::from_str(toml_str).unwrap();
+        let config = generator.new_config(&root_toml).unwrap();
+        
+        // Explicit targets should be preserved
+        assert_eq!(config.kotlin_targets.len(), 1);
+        assert!(config.kotlin_targets.contains(&ConfigKotlinTarget::Jvm));
+    }
 }
