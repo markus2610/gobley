@@ -185,6 +185,20 @@ impl Config {
             .clone()
     }
 
+    /// Get kotlin_targets with defaults when kotlin_multiplatform is enabled
+    pub fn kotlin_targets(&self) -> Vec<ConfigKotlinTarget> {
+        if self.kotlin_targets.is_empty() && self.kotlin_multiplatform {
+            // Default to common KMP targets when multiplatform is enabled
+            vec![
+                ConfigKotlinTarget::Jvm,
+                ConfigKotlinTarget::Android,
+                ConfigKotlinTarget::Native,
+            ]
+        } else {
+            self.kotlin_targets.clone()
+        }
+    }
+
     /// Whether to generate immutable records (`val` instead of `var`)
     pub fn generate_immutable_records(&self) -> bool {
         self.generate_immutable_records.unwrap_or(false)
@@ -287,7 +301,7 @@ pub fn generate_bindings(
         f: impl FnOnce() -> Result<String>,
     ) -> Result<Option<String>> {
         config
-            .kotlin_targets
+            .kotlin_targets()
             .contains(&target)
             .then(f)
             .map_or(Ok(None), |v| v.map(Some))

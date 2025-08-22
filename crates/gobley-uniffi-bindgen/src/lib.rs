@@ -19,7 +19,13 @@ impl BindingGenerator for KotlinBindingGenerator {
     type Config = Config;
 
     fn new_config(&self, root_toml: &toml::value::Value) -> Result<Self::Config> {
-        Ok(root_toml.clone().try_into()?)
+        // Support both [bindings.kotlin] format and flat format for compatibility
+        let kotlin_config = root_toml
+            .get("bindings")
+            .and_then(|b| b.get("kotlin"))
+            .unwrap_or(root_toml);
+        
+        Ok(kotlin_config.clone().try_into()?)
     }
 
     fn update_component_configs(
