@@ -10,7 +10,7 @@ use std::fs;
 
 use anyhow::Context as _;
 use camino::{Utf8Path, Utf8PathBuf};
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use gobley_uniffi_bindgen::KotlinBindingGenerator;
 use uniffi_bindgen::BindgenCrateConfigSupplier;
 
@@ -54,8 +54,8 @@ struct Cli {
     try_format_code: bool,
 
     /// Generate Kotlin Multiplatform bindings with all targets (jvm, android, native).
-    #[clap(long = "kmp")]
-    kotlin_multiplatform: bool,
+    #[clap(long = "multiplatform", action = ArgAction::SetTrue)]
+    kotlin_multiplatform: Option<bool>,
 
     /// Path to the UDL file, or cdylib if `library-mode` is specified.
     source: Utf8PathBuf,
@@ -124,14 +124,10 @@ fn main() -> anyhow::Result<()> {
         crate_name,
         source,
         try_format_code,
-        kotlin_multiplatform,
+        kotlin_multiplatform: multiplatform,
     } = Cli::parse();
 
-    let binding_generator = if kotlin_multiplatform {
-        KotlinBindingGenerator::new().with_multiplatform(true)
-    } else {
-        KotlinBindingGenerator::new()
-    };
+    let binding_generator = KotlinBindingGenerator { multiplatform };
 
     if library_mode {
         if lib_file.is_some() {
