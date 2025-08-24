@@ -186,13 +186,14 @@ impl Config {
     }
 
     /// Get kotlin_targets with defaults when kotlin_multiplatform is enabled
-    pub fn kotlin_targets(&self) -> Vec<ConfigKotlinTarget> {
+    pub(crate) fn kotlin_targets(&self) -> Vec<ConfigKotlinTarget> {
         if self.kotlin_targets.is_empty() && self.kotlin_multiplatform {
             // Default to common KMP targets when multiplatform is enabled
             vec![
                 ConfigKotlinTarget::Jvm,
                 ConfigKotlinTarget::Android,
                 ConfigKotlinTarget::Native,
+                ConfigKotlinTarget::Stub,
             ]
         } else {
             self.kotlin_targets.clone()

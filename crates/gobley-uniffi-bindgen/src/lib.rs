@@ -12,27 +12,20 @@ use fs_err as fs;
 use uniffi_bindgen::{BindingGenerator, Component, ComponentInterface, GenerationSettings};
 
 mod gen_kotlin_multiplatform;
-use gen_kotlin_multiplatform::{generate_bindings, Config, ConfigKotlinTarget};
+use gen_kotlin_multiplatform::{generate_bindings, Config};
 
+#[derive(Default)]
 pub struct KotlinBindingGenerator {
-    pub force_multiplatform: bool,
-}
-
-impl Default for KotlinBindingGenerator {
-    fn default() -> Self {
-        Self {
-            force_multiplatform: false,
-        }
-    }
+    pub multiplatform: Option<bool>,
 }
 
 impl KotlinBindingGenerator {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn with_multiplatform(mut self, enabled: bool) -> Self {
-        self.force_multiplatform = enabled;
+        self.multiplatform = Some(enabled);
         self
     }
 }
@@ -41,27 +34,17 @@ impl BindingGenerator for KotlinBindingGenerator {
     type Config = Config;
 
     fn new_config(&self, root_toml: &toml::value::Value) -> Result<Self::Config> {
-        // Support both [bindings.kotlin] format and flat format for compatibility
-        let kotlin_config = root_toml
-            .get("bindings")
-            .and_then(|b| b.get("kotlin"))
-            .unwrap_or(root_toml);
-        
-        let mut config: Config = kotlin_config.clone().try_into()?;
-        
-        // Override with CLI flag if provided
-        if self.force_multiplatform {
-            config.kotlin_multiplatform = true;
-            // Ensure we have default targets if none specified
-            if config.kotlin_targets.is_empty() {
-                config.kotlin_targets = vec![
-                    ConfigKotlinTarget::Jvm,
-                    ConfigKotlinTarget::Android,
-                    ConfigKotlinTarget::Native,
-                ];
-            }
+        let Some(config) = root_toml.get("bindings").and_then(|b| b.get("kotlin")) else {
+            return Ok(Config::default());
+        };
+
+        let mut config: Config = config.clone().try_into()?;
+
+        // Override with CLI flags if provided
+        if let Some(multiplatform) = self.multiplatform {
+            config.kotlin_multiplatform = multiplatform;
         }
-        
+
         Ok(config)
     }
 
