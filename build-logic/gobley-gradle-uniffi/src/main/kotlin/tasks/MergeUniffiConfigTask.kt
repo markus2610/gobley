@@ -160,7 +160,7 @@ abstract class MergeUniffiConfigTask : DefaultTask() {
                 dynamicLibraryDependencies.orNull,
             ),
         )
-        val result = originalConfig?.copy(
+        val result = (originalConfig ?: Config()).copy(
             // Properties read by the Gradle plugins
             crateName = crateName.orNull,
             packageRoot = packageRoot.orNull,
@@ -170,7 +170,7 @@ abstract class MergeUniffiConfigTask : DefaultTask() {
             ),
         )
         outputConfig.get().asFile.writeText(
-            toml.encodeToString(result ?: Config()),
+            toml.encodeToString(result),
             Charsets.UTF_8,
         )
     }
