@@ -102,7 +102,7 @@ pub(crate) enum ConfigKotlinTarget {
 pub struct Config {
     pub(super) package_name: Option<String>,
     pub(super) cdylib_name: Option<String>,
-    #[serde(default)]
+    #[serde(default = "Config::default_kotlin_multiplatform")]
     pub(crate) kotlin_multiplatform: bool,
     #[serde(default)]
     pub(crate) kotlin_targets: Vec<ConfigKotlinTarget>,
@@ -126,6 +126,12 @@ pub struct Config {
     android_dynamic_library_dependencies: Vec<String>,
     #[serde(default)]
     dynamic_library_dependencies: Vec<String>,
+}
+
+impl Config {
+    fn default_kotlin_multiplatform() -> bool {
+        true
+    }
 }
 
 // TODO: Make this public in 0.4.0
